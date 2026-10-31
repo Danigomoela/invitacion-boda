@@ -144,70 +144,50 @@ document.addEventListener('DOMContentLoaded', function () {
   // ==========================================
 
   const form = document.getElementById('rsvpForm');
-  const success = document.getElementById('success');
 
-  if (!form || !success) {
+  if (!form) {
     console.error('No se encontró el formulario RSVP.');
     return;
   }
 
-  const submitButton = form.querySelector(
-    'button[type="submit"]'
-  );
+  const success = document.getElementById('success');
+  const submitButton = form.querySelector('button[type="submit"]');
 
-  if (!submitButton) {
-    console.error('No se encontró el botón de envío.');
+  if (!success || !submitButton) {
+    console.error('No se encontraron los elementos del formulario.');
     return;
   }
-
-  const note = form.querySelector('.note');
 
   const SCRIPT_URL =
     'https://script.google.com/macros/s/AKfycbxg20_W8xVs6Enu3QA2BPVnzTLOBbvwLlpey4qFDokKcvKoyjZRyO3J4wIBgyMBRRjh/exec';
 
-  form.action = SCRIPT_URL;
-  form.method = 'POST';
-  form.target = 'rsvpResponseFrame';
-
-  // El mensaje de éxito ya no se muestra como recuadro.
-  success.style.display = 'none';
-  success.textContent = '';
-
-  if (note) {
-    note.textContent =
-      'Tu respuesta se enviará para guardarse en la lista de confirmaciones.';
-  }
-
-  // Crear un iframe oculto para no salir de la invitación.
   const responseFrame = document.createElement('iframe');
 
   responseFrame.name = 'rsvpResponseFrame';
   responseFrame.title = 'Respuesta del formulario RSVP';
   responseFrame.style.display = 'none';
-  responseFrame.setAttribute('aria-hidden', 'true');
 
   document.body.appendChild(responseFrame);
 
+  form.action = SCRIPT_URL;
+  form.method = 'POST';
+  form.target = 'rsvpResponseFrame';
+
   let submitted = false;
+  let currentRequestId = null;
   let responseTimer = null;
-  let responseFrameLoaded = false;
-  let fallbackTimer = null;
 
-  function clearTimers() {
-    if (responseTimer !== null) {
-      clearTimeout(responseTimer);
-      responseTimer = null;
-    }
+  success.style.display = 'none';
 
-    if (fallbackTimer !== null) {
-      clearTimeout(fallbackTimer);
-      fallbackTimer = null;
-    }
-  }
+  // ------------------------------------------
+  // Mostrar error
+  // ------------------------------------------
 
   function showError(message) {
     submitted = false;
-    clearTimers();
+    currentRequestId = null;
+
+    clearTimeout(responseTimer);
 
     submitButton.disabled = false;
     submitButton.textContent = 'Enviar confirmación';
@@ -216,46 +196,30 @@ document.addEventListener('DOMContentLoaded', function () {
     success.style.display = 'block';
   }
 
-  function showSent() {
+  // ------------------------------------------
+  // Mostrar confirmación exitosa
+  // ------------------------------------------
+
+  function showSuccess() {
     submitted = false;
-    clearTimers();
+    currentRequestId = null;
+
+    clearTimeout(responseTimer);
 
     submitButton.disabled = true;
     submitButton.textContent = '¡Confirmación enviada!';
 
-    // No mostrar el recuadro de confirmación.
+    // Ocultar el mensaje de confirmación.
     success.textContent = '';
     success.style.display = 'none';
 
-    // Limpiar los campos solo después de confirmar el éxito.
     form.reset();
   }
 
-  // Detectar la carga de la respuesta del iframe.
-  responseFrame.addEventListener('load', function () {
-    if (!responseFrameLoaded) {
-      responseFrameLoaded = true;
-      return;
-    }
+  // ------------------------------------------
+  // Enviar formulario
+  // ------------------------------------------
 
-    if (!submitted) {
-      return;
-    }
-
-    // Dar tiempo a Apps Script para enviar postMessage.
-    fallbackTimer = setTimeout(function () {
-      if (!submitted) {
-        return;
-      }
-
-      // No afirmar que se guardó si no recibimos confirmación.
-      showError(
-        'No pudimos verificar el envío. Revisa la lista de respuestas antes de volver a intentarlo.'
-      );
-    }, 2000);
-  });
-
-  // Procesar el formulario.
   form.addEventListener('submit', function (event) {
     if (!form.reportValidity()) {
       event.preventDefault();
@@ -268,48 +232,60 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     submitted = true;
-    clearTimers();
 
-    success.textContent = '';
+    // Identificador único para esta solicitud.
+    currentRequestId = crypto.randomUUID();
+
+    let requestInput = form.querySelector(
+      'input[name="requestId"]'
+    );
+
+    if (!requestInput) {
+      requestInput = document.createElement('input');
+      requestInput.type = 'hidden';
+      requestInput.name = 'requestId';
+      form.appendChild(requestInput);
+    }
+
+    requestInput.value = currentRequestId;
+
     success.style.display = 'none';
+    success.textContent = '';
 
     submitButton.disabled = true;
     submitButton.textContent = 'Enviando…';
 
-    // Tiempo máximo de espera por una respuesta de Apps Script.
+    clearTimeout(responseTimer);
+
     responseTimer = setTimeout(function () {
-      if (!submitted) {
-        return;
-      }
+      if (!submitted) return;
 
       showError(
-        'No pudimos verificar el envío. Revisa tu conexión y la lista de respuestas antes de intentarlo de nuevo.'
+        'No pudimos verificar tu confirmación. Antes de intentarlo nuevamente, revisa si tu respuesta ya aparece en nuestra lista.'
       );
-    }, 15000);
+    }, 30000);
   });
 
-  // Recibir el resultado enviado por Google Apps Script.
+  // ------------------------------------------
+  // Recibir respuesta de Google Apps Script
+  // ------------------------------------------
+
   window.addEventListener('message', function (event) {
-    if (event.source !== responseFrame.contentWindow) {
+    const data = event.data;
+
+    if (!data || data.type !== 'rsvp-result') {
       return;
     }
 
-    if (
-      !event.data ||
-      event.data.type !== 'rsvp-result'
-    ) {
+    if (!submitted || data.requestId !== currentRequestId) {
       return;
     }
 
-    if (!submitted) {
-      return;
-    }
-
-    if (event.data.status === 'success') {
-      showSent();
+    if (data.status === 'success') {
+      showSuccess();
     } else {
       showError(
-        'No se pudo guardar tu confirmación. Revisa los datos e inténtalo de nuevo.'
+        'No se pudo guardar tu confirmación. Revisa los datos e inténtalo nuevamente.'
       );
     }
   });

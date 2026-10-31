@@ -383,7 +383,20 @@
   line-height: 1.8;
   margin: 0;
 }
+.gift-link {
+  margin-top: 8px;
+  transition: color 0.25s ease, border-color 0.25s ease;
+}
 
+.gift-link:hover {
+  color: var(--accent);
+  border-color: var(--green);
+}
+
+.gift-link:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 4px;
+} 
 /* Tarjeta de vestimenta */
 
 .note-card-dress {
@@ -524,6 +537,7 @@
       text-transform: uppercase;
       width: 100%;
     }
+
 
     .message {
       display: none;
