@@ -307,6 +307,7 @@
   width: 100%;
   overflow: hidden;
   padding: 60px 0;
+   background-color: var(--accent);
 }
 
 .fotos {
