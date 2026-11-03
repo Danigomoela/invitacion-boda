@@ -234,6 +234,27 @@
       line-height: 1.8;
     }
 
+    
+
+.event--church {
+  background:
+    linear-gradient(
+      rgba(255, 253, 249, 0.72),
+      rgba(255, 253, 249, 0.82)
+    ),
+    url('images/iglesia.jpg') center / cover no-repeat;
+}
+
+.event--reception {
+  background:
+    linear-gradient(
+      rgba(255, 253, 249, 0.72),
+      rgba(255, 253, 249, 0.82)
+    ),
+    url('images/salon.jpg') center / cover no-repeat;
+}
+
+
    .map {
       width: 100%;
       height: clamp(180px, 28vw, 320px);
