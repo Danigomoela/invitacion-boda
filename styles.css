@@ -314,7 +314,7 @@
   display: flex;
   width: max-content;
   gap: 20px;
-  animation: carrusel 45s linear infinite;
+  animation: carrusel 180s linear infinite;
 }
 
 .foto {
