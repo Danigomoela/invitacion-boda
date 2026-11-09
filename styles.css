@@ -322,6 +322,7 @@
   width: clamp(240px, 28vw, 380px);
   height: 280px;
   object-fit: cover;
+  object-position: top;
   display: block;
 }
 
